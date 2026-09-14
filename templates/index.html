@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Facebook Post Uploader</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --blue:#1877f2;--blue-dk:#1464d8;--blue-lt:#e7f0fd;
+      --green:#42b72a;--red:#e74c3c;--orange:#f0a500;
+      --bg:#f0f2f5;--card:#fff;--border:#e4e6eb;
+      --text:#1c1e21;--muted:#65676b;--sidebar-w:270px;
+    }
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:var(--bg);min-height:100vh;display:flex;flex-direction:column}
+
+    /* ── Topbar ── */
+    .topbar{position:sticky;top:0;z-index:100;width:100%;height:56px;background:var(--blue);display:flex;align-items:center;padding:0 24px;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+    .topbar-logo{width:36px;height:36px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:900;color:var(--blue)}
+    .topbar-title{color:#fff;font-size:17px;font-weight:700}
+    .topbar-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+    .topbar-user{color:rgba(255,255,255,.8);font-size:13px}
+    .btn-logout{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);padding:6px 14px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;transition:background .15s}
+    .btn-logout:hover{background:rgba(255,255,255,.25)}
+
+    /* ── Layout ── */
+    .layout{display:flex;flex:1;min-height:calc(100vh - 56px)}
+
+    /* ── Sidebar ── */
+    .sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;height:calc(100vh - 56px);position:sticky;top:56px;overflow-y:auto}
+    .sidebar-header{padding:18px 16px 12px;border-bottom:1px solid var(--border)}
+    .sidebar-header h2{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:10px}
+    .btn-add-page{width:100%;padding:9px;background:var(--blue-lt);color:var(--blue);border:1.5px dashed var(--blue);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:background .15s}
+    .btn-add-page:hover{background:#d4e5fc}
+    .pages-list{flex:1;padding:10px;display:flex;flex-direction:column;gap:7px}
+    .empty-pages{text-align:center;padding:28px 12px;color:var(--muted);font-size:13px;line-height:1.6}
+    .empty-icon{font-size:32px;margin-bottom:8px}
+    .page-card{border-radius:10px;border:2px solid var(--border);padding:11px;cursor:pointer;transition:border-color .15s,background .15s}
+    .page-card:hover{border-color:var(--blue);background:#fafbff}
+    .page-card.selected{border-color:var(--blue);background:var(--blue-lt)}
+    .page-card-inner{display:flex;align-items:center;gap:9px}
+    .page-avatar{width:38px;height:38px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:800;flex-shrink:0;position:relative}
+    .page-card.selected .page-avatar::after{content:'✓';position:absolute;bottom:-2px;right:-2px;width:15px;height:15px;border-radius:50%;background:var(--green);color:#fff;font-size:8px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid #fff}
+    .page-meta{flex:1;min-width:0}
+    .page-name{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .page-pid{font-size:11px;color:var(--muted);margin-top:2px}
+    .page-del{background:none;border:none;cursor:pointer;color:#ccc;font-size:13px;padding:3px 5px;border-radius:4px;flex-shrink:0;transition:color .15s,background .15s}
+    .page-del:hover{color:var(--red);background:#fdecea}
+    .sel-badge{display:none;margin-top:7px;font-size:11px;font-weight:700;color:var(--blue);background:#fff;border-radius:6px;padding:2px 8px;text-align:center}
+    .page-card.selected .sel-badge{display:block}
+
+    /* ── Main ── */
+    .main{flex:1;padding:24px 28px;display:flex;flex-direction:column;gap:20px;max-width:900px}
+
+    /* ── Panel ── */
+    .panel{background:var(--card);border-radius:12px;border:1px solid var(--border);box-shadow:0 1px 4px rgba(0,0,0,.06);overflow:hidden}
+    .panel-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+    .panel-icon{width:32px;height:32px;border-radius:8px;background:var(--blue-lt);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+    .panel-title{font-size:14px;font-weight:700;color:var(--text)}
+    .panel-sub{font-size:12px;color:var(--muted);margin-top:1px}
+    .panel-body{padding:18px}
+
+    /* ── Automation job cards ── */
+    .jobs-grid{display:flex;flex-direction:column;gap:12px}
+    .job-card{border-radius:10px;border:2px solid var(--border);overflow:hidden;transition:border-color .2s}
+    .job-card.running{border-color:var(--blue)}
+    .job-card.done{border-color:var(--green)}
+    .job-card.stopped{border-color:var(--orange)}
+    .job-card.queued{border-color:#9b59b6}
+
+    .job-head{display:flex;align-items:center;gap:10px;padding:12px 14px;background:#fafbff}
+    .job-card.done .job-head{background:#f6fef6}
+    .job-card.stopped .job-head{background:#fff8e1}
+    .job-card.queued .job-head{background:#fdf4ff}
+
+    .job-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+    .running .job-dot{background:var(--blue);box-shadow:0 0 0 0 rgba(24,119,242,.5);animation:jpulse 1.4s infinite}
+    .done .job-dot{background:var(--green)}
+    .stopped .job-dot{background:var(--orange)}
+    .queued .job-dot{background:#9b59b6;box-shadow:0 0 0 0 rgba(155,89,182,.5);animation:jpulse 1.4s infinite}
+    @keyframes jpulse{0%{box-shadow:0 0 0 0 rgba(24,119,242,.5)}70%{box-shadow:0 0 0 7px rgba(24,119,242,0)}100%{box-shadow:0 0 0 0 rgba(24,119,242,0)}}
+
+    .job-info{flex:1;min-width:0}
+    .job-title{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .job-meta{font-size:11px;color:var(--muted);margin-top:2px}
+
+    .job-status-chip{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;flex-shrink:0}
+    .running .job-status-chip{background:#dbeafe;color:var(--blue)}
+    .done .job-status-chip{background:#e6f4ea;color:#1e7e34}
+    .stopped .job-status-chip{background:#fff3cd;color:#856404}
+    .queued .job-status-chip{background:#f3e8ff;color:#7c3aed}
+
+    .job-actions{display:flex;gap:6px;flex-shrink:0}
+    .job-btn{font-size:12px;font-weight:600;padding:5px 11px;border-radius:6px;border:none;cursor:pointer;transition:background .15s}
+    .job-btn-stop{background:#fdecea;color:var(--red)}
+    .job-btn-stop:hover{background:#f5c6c6}
+    .job-btn-remove{background:#f0f2f5;color:var(--muted)}
+    .job-btn-remove:hover{background:#e4e6eb}
+    .job-btn-dl{background:var(--blue-lt);color:var(--blue);text-decoration:none}
+    .job-btn-dl:hover{background:#d4e5fc}
+
+    .job-body{padding:12px 14px;display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--border)}
+
+    .prog-label{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px}
+    .prog-wrap{background:#f0f2f5;border-radius:8px;height:8px;overflow:hidden}
+    .prog-fill{height:100%;border-radius:8px;background:linear-gradient(90deg,var(--blue),var(--green));transition:width .5s ease}
+
+    .job-countdown{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+    .cd-num{font-size:18px;font-weight:900;color:var(--blue);font-variant-numeric:tabular-nums}
+
+    .job-last{font-size:12px;padding:8px 10px;border-radius:7px;display:flex;gap:8px;align-items:flex-start}
+    .job-last.ok{background:#f0faf0;border:1px solid #c3e6cb}
+    .job-last.err{background:#fff5f5;border:1px solid #fecdca}
+    .job-last-icon{flex-shrink:0;font-size:14px}
+    .job-last-info strong{display:block;font-size:12px;color:var(--text)}
+    .job-last-info small{font-size:11px;color:var(--muted)}
+
+    .empty-jobs{text-align:center;padding:32px;color:var(--muted);font-size:13px}
+    .empty-jobs-icon{font-size:40px;margin-bottom:10px}
+
+    /* ── Upload area ── */
+    .upload-area{display:block;border:2px dashed #c5cfe8;border-radius:12px;padding:0;cursor:pointer;transition:border-color .2s,box-shadow .2s;background:linear-gradient(145deg,#f5f8ff,#eef2ff);overflow:hidden}
+    .upload-area:hover,.upload-area.drag-over{border-color:var(--blue);box-shadow:0 0 0 4px rgba(24,119,242,.1)}
+    .upload-area input{display:none}
+    .upload-inner{display:flex;flex-direction:column;align-items:center;padding:36px 24px}
+    .upload-cloud{width:64px;height:64px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(24,119,242,.15);margin-bottom:14px;transition:transform .2s}
+    .upload-area:hover .upload-cloud{transform:translateY(-3px)}
+    .upload-cloud svg{width:30px;height:30px}
+    .upload-title{font-size:15px;font-weight:800;color:var(--text);margin-bottom:4px}
+    .upload-sub{font-size:13px;color:var(--muted);margin-bottom:14px}
+    .upload-btn-fake{background:var(--blue);color:#fff;padding:8px 22px;border-radius:8px;font-size:14px;font-weight:700;margin-bottom:14px;box-shadow:0 4px 12px rgba(24,119,242,.3)}
+    .upload-area:hover .upload-btn-fake{background:var(--blue-dk)}
+    .upload-formats{display:flex;gap:6px;align-items:center}
+    .fmt-chip{background:#fff;color:var(--blue);border:1.5px solid #c5cfe8;font-size:11px;font-weight:800;padding:2px 9px;border-radius:6px;letter-spacing:.5px}
+    .fmt-sep{color:var(--muted);font-size:11px}
+
+    /* ── Preview ── */
+    .stats-row{display:flex;gap:10px;margin-bottom:14px}
+    .stat-box{flex:1;border-radius:10px;padding:11px 14px;text-align:center}
+    .stat-box.total{background:#f0f2f5;border:1px solid var(--border)}
+    .stat-box.pending{background:#fff8e1;border:1px solid #ffe082}
+    .stat-box.done{background:#e6f4ea;border:1px solid #b7dfbf}
+    .stat-num{font-size:20px;font-weight:900;color:var(--text)}
+    .stat-label{font-size:10px;font-weight:600;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.5px}
+
+    .text-scroll{max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:9px;margin-bottom:16px}
+    .text-row{display:flex;align-items:center;gap:10px;padding:10px 13px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text)}
+    .text-row:last-child{border-bottom:none}
+    .text-row.is-done{background:#f6fef6;opacity:.75}
+    .text-idx{color:var(--muted);font-size:11px;font-weight:700;min-width:22px;flex-shrink:0}
+    .text-val{flex:1;line-height:1.5}
+    .pill{flex-shrink:0;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;white-space:nowrap}
+    .pill.pending{background:#fff3cd;color:#856404;border:1px solid #ffe082}
+    .pill.uploaded{background:#e6f4ea;color:#1e7e34;border:1px solid #b7dfbf}
+
+    /* ── Create automation bar ── */
+    .create-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:13px 14px;background:#f8f9ff;border:1.5px solid #c5cfe8;border-radius:10px}
+    .create-bar label{font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap}
+    .create-bar select{padding:7px 11px;border:1.5px solid var(--border);border-radius:7px;font-size:14px;font-weight:600;color:var(--text);background:#fff;cursor:pointer;outline:none}
+    .create-bar select:focus{border-color:var(--blue)}
+
+    /* ── Buttons ── */
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 18px;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;transition:background .15s,transform .1s;white-space:nowrap}
+    .btn:active{transform:scale(.98)}
+    .btn-blue{background:var(--blue);color:#fff}
+    .btn-blue:hover{background:var(--blue-dk);box-shadow:0 4px 12px rgba(24,119,242,.3)}
+    .btn-blue:disabled{background:#9bbcf5;cursor:not-allowed;transform:none;box-shadow:none}
+    .btn-green{background:var(--green);color:#fff}
+    .btn-green:hover{background:#36a120;box-shadow:0 4px 12px rgba(66,183,42,.3)}
+    .btn-green:disabled{background:#90d67e;cursor:not-allowed;transform:none;box-shadow:none}
+    .btn-ghost{background:var(--border);color:var(--text)}
+    .btn-ghost:hover{background:#d8dadf}
+    .btn-outline{background:#fff;color:var(--blue);border:1.5px solid var(--blue)}
+    .btn-outline:hover{background:var(--blue-lt)}
+    .spinner{display:none;width:14px;height:14px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .btn.loading .spinner{display:block}
+    .btn.loading .btn-text{display:none}
+
+    /* ── Error ── */
+    .err-box{background:#fff5f5;color:var(--red);border:1px solid #fecdca;border-radius:8px;padding:10px 13px;font-size:13px;margin-bottom:14px;display:none;align-items:center;gap:7px}
+    .err-box.show{display:flex}
+
+    /* ── Modal ── */
+    .modal-overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.45);align-items:center;justify-content:center}
+    .modal-overlay.open{display:flex}
+    .modal{background:#fff;border-radius:12px;padding:26px 26px 22px;width:100%;max-width:430px;box-shadow:0 8px 32px rgba(0,0,0,.2);animation:slideUp .2s ease}
+    @keyframes slideUp{from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}
+    .modal-title{font-size:16px;font-weight:800;color:var(--text);margin-bottom:18px;display:flex;align-items:center;gap:8px}
+    .field{margin-bottom:13px}
+    .field label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+    .field input{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;color:var(--text);outline:none;transition:border-color .15s,box-shadow .15s}
+    .field input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(24,119,242,.12)}
+    .modal-actions{display:flex;gap:8px;margin-top:18px}
+    .divider{border:none;border-top:1px solid var(--border)}
+
+    /* ── Tabs ── */
+    .tabs{display:flex;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:4px;width:fit-content}
+    .tab-btn{padding:7px 18px;border-radius:7px;border:none;font-size:13px;font-weight:700;cursor:pointer;background:none;color:var(--muted);transition:background .15s,color .15s}
+    .tab-btn.active{background:var(--blue);color:#fff}
+    .tab-btn:not(.active):hover{background:#f0f2f5;color:var(--text)}
+
+    /* ── Image queue ── */
+    .url-textarea{width:100%;min-height:90px;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);resize:vertical;outline:none;font-family:inherit;transition:border-color .15s}
+    .url-textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(24,119,242,.1)}
+    .url-textarea::placeholder{color:#aaa}
+    .img-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:16px}
+    .img-card{border-radius:10px;border:1.5px solid var(--border);overflow:hidden;background:#fff;transition:box-shadow .15s}
+    .img-card:hover{box-shadow:0 2px 12px rgba(0,0,0,.1)}
+    .img-card.is-posted{opacity:.55}
+    .img-thumb-wrap{position:relative;width:100%;padding-top:75%;background:#f0f2f5;overflow:hidden}
+    .img-thumb{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+    .img-thumb-err{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:28px;color:#ccc}
+    .img-posted-badge{position:absolute;top:6px;right:6px;background:#42b72a;color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:20px}
+    .img-info{padding:8px 9px}
+    .img-caption-input{width:100%;border:none;outline:none;font-size:12px;font-weight:600;color:var(--text);background:none;padding:0;font-family:inherit}
+    .img-caption-input:focus{border-bottom:1.5px solid var(--blue)}
+    .img-posted-date{font-size:10px;color:var(--muted);margin-top:3px}
+    .img-del{width:100%;margin-top:6px;padding:4px;border:none;background:#fdecea;color:var(--red);font-size:11px;font-weight:700;border-radius:5px;cursor:pointer}
+    .img-del:hover{background:#f5c6c6}
+    .img-stats{display:flex;gap:10px;margin-bottom:14px}
+    .img-stat{flex:1;text-align:center;background:#f0f2f5;border-radius:9px;padding:9px 8px;border:1px solid var(--border)}
+    .img-stat.pend{background:#fff8e1;border-color:#ffe082}
+    .img-stat.done{background:#e6f4ea;border-color:#b7dfbf}
+    .img-stat-num{font-size:18px;font-weight:900;color:var(--text)}
+    .img-stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+    .empty-img-queue{text-align:center;padding:32px;color:var(--muted);font-size:13px}
+
+    /* ── Image drop zone ── */
+    .img-drop-zone{display:block;border:2px dashed #c5cfe8;border-radius:12px;cursor:pointer;background:linear-gradient(145deg,#f5f8ff,#eef2ff);transition:border-color .2s,box-shadow .2s}
+    .img-drop-zone:hover,.img-drop-zone.drag-over{border-color:var(--blue);box-shadow:0 0 0 4px rgba(24,119,242,.1)}
+    .img-drop-inner{display:flex;flex-direction:column;align-items:center;padding:28px 24px}
+    .img-file-card{border-radius:10px;border:1.5px solid var(--border);overflow:hidden;background:#fff;position:relative}
+    .img-file-status{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border-radius:9px}
+    .img-file-status.uploading{background:rgba(24,119,242,.7);color:#fff}
+    .img-file-status.done{background:rgba(66,183,42,.8);color:#fff}
+    .img-file-status.error{background:rgba(231,76,60,.8);color:#fff;font-size:10px;padding:4px;text-align:center}
+  </style>
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="topbar">
+  <div class="topbar-logo">f</div>
+  <span class="topbar-title">Post Uploader</span>
+  <div class="topbar-right">
+    <span class="topbar-user">manish@yopmail.com</span>
+    <a href="/logout" class="btn-logout">Log Out</a>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- ── Sidebar: FB Pages ── -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h2>Facebook Pages</h2>
+      <button class="btn-add-page" onclick="openModal()">+ Add New Page</button>
+      <button class="btn-add-page" style="margin-top:7px;background:#fff8e1;color:#856404;border-color:#f0a500;" onclick="openTokenModal()">🔄 Refresh Tokens</button>
+    </div>
+    <div class="pages-list" id="pagesList"></div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <main class="main">
+
+    <!-- Tab switcher -->
+    <div class="tabs">
+      <button class="tab-btn active" id="tabTextBtn" onclick="switchTab('text')">📝 Text Posts</button>
+      <button class="tab-btn" id="tabImgBtn"  onclick="switchTab('images')">🖼️ Image Posts</button>
+    </div>
+
+    <!-- ══ TEXT POSTS TAB ══ -->
+    <div id="tabText" style="display:flex;flex-direction:column;gap:20px;">
+
+    <!-- Active Text Automations panel -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-icon">⚡</div>
+        <div style="flex:1">
+          <div class="panel-title">Text Automations</div>
+          <div class="panel-sub">Each automation posts one text every interval until the file is complete</div>
+        </div>
+        <span id="jobCountChip" style="background:var(--blue);color:#fff;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:700;display:none;"></span>
+      </div>
+      <div class="panel-body">
+        <div id="jobsWrap">
+          <div class="empty-jobs">
+            <div class="empty-jobs-icon">🤖</div>
+            No automations running yet.<br>Upload a file below to create one.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upload panel -->
+    <div class="panel" id="uploadPanel">
+      <div class="panel-head">
+        <div class="panel-icon">📊</div>
+        <div>
+          <div class="panel-title">Upload File</div>
+          <div class="panel-sub">Select pages in the sidebar, upload an Excel/CSV file, then start an automation</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="err-box" id="errBox"><span>⚠️</span><span id="errText"></span></div>
+
+        <label class="upload-area" id="uploadArea" for="fileInput">
+          <div class="upload-inner">
+            <div class="upload-cloud">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#1877f2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+                <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+              </svg>
+            </div>
+            <div class="upload-title">Drop your file here</div>
+            <div class="upload-sub">Excel rows become Facebook posts</div>
+            <div class="upload-btn-fake">Browse File</div>
+            <div class="upload-formats">
+              <span class="fmt-chip">XLSX</span><span class="fmt-sep">·</span>
+              <span class="fmt-chip">XLS</span><span class="fmt-sep">·</span>
+              <span class="fmt-chip">CSV</span><span class="fmt-sep">·</span>
+              <span class="fmt-chip">NUMBERS</span>
+            </div>
+          </div>
+          <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.numbers"/>
+        </label>
+      </div>
+    </div>
+
+    <!-- Preview panel (hidden until file uploaded) -->
+    <div class="panel" id="previewPanel" style="display:none;">
+      <div class="panel-head">
+        <div class="panel-icon">👁️</div>
+        <div style="flex:1">
+          <div class="panel-title" id="previewTitle">Preview</div>
+          <div class="panel-sub" id="previewSub"></div>
+        </div>
+        <button class="btn btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="resetUpload()">✕ Change File</button>
+      </div>
+      <div class="panel-body">
+
+        <!-- Stats -->
+        <div class="stats-row">
+          <div class="stat-box total"><div class="stat-num" id="statTotal">0</div><div class="stat-label">Total</div></div>
+          <div class="stat-box pending"><div class="stat-num" id="statPending">0</div><div class="stat-label">Pending</div></div>
+          <div class="stat-box done"><div class="stat-num" id="statDone">0</div><div class="stat-label">Uploaded</div></div>
+        </div>
+
+        <!-- Row list -->
+        <div class="text-scroll" id="textList"></div>
+
+        <!-- Create automation bar -->
+        <div class="create-bar">
+          <label>Post to</label>
+          <select id="pageSelDrop" style="max-width:160px;">
+            <option value="">— select page —</option>
+          </select>
+          <label>every</label>
+          <select id="intervalSel">
+            <option value="5">5 min</option>
+            <option value="10">10 min</option>
+            <option value="20" selected>20 min</option>
+            <option value="30">30 min</option>
+            <option value="60">1 hour</option>
+          </select>
+          <button class="btn btn-green" id="createBtn" onclick="createAutomation()">
+            <span class="spinner"></span>
+            <span class="btn-text">🚀 Create Automation</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    </div><!-- end #tabText -->
+
+
+    <!-- ══ IMAGE POSTS TAB ══ -->
+    <div id="tabImages" style="display:none;flex-direction:column;gap:20px;">
+
+      <!-- Image Automations -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-icon">⚡</div>
+          <div style="flex:1">
+            <div class="panel-title">Image Automations</div>
+            <div class="panel-sub">Posts images from your queue automatically each day</div>
+          </div>
+          <span id="imgJobCountChip" style="background:var(--blue);color:#fff;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:700;display:none;"></span>
+        </div>
+        <div class="panel-body">
+          <div id="imgJobsWrap">
+            <div class="empty-jobs"><div class="empty-jobs-icon">🖼️</div>No image automations yet.<br>Add images below and create one.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Upload Images panel -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-icon">📤</div>
+          <div>
+            <div class="panel-title">Upload Images</div>
+            <div class="panel-sub">Select images from your computer — uploaded to Cloudinary, then added to queue</div>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="err-box" id="imgErrBox"><span>⚠️</span><span id="imgErrText"></span></div>
+
+          <!-- Drop zone -->
+          <label class="img-drop-zone" id="imgDropZone" for="imgFileInput">
+            <input type="file" id="imgFileInput" accept=".jpg,.jpeg,.png,.gif,.webp" multiple style="display:none"/>
+            <div class="img-drop-inner">
+              <div style="font-size:38px;margin-bottom:8px;">🖼️</div>
+              <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;">Drop images here or click to browse</div>
+              <div style="font-size:12px;color:var(--muted);">JPG · PNG · GIF · WebP &nbsp;·&nbsp; Multiple files supported</div>
+            </div>
+          </label>
+
+          <!-- Selected files preview -->
+          <div id="selectedFilesWrap" style="display:none;margin-top:14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <span style="font-size:13px;font-weight:700;color:var(--text);" id="selFileCount"></span>
+              <div style="display:flex;gap:8px;">
+                <button class="btn btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="clearSelectedFiles()">✕ Clear</button>
+                <button class="btn btn-blue" id="uploadAllBtn" onclick="uploadAllImages()">
+                  <span class="spinner"></span>
+                  <span class="btn-text">⬆️ Upload All to Cloudinary</span>
+                </button>
+              </div>
+            </div>
+            <div class="img-grid" id="selectedFilesGrid"></div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Image Queue panel -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-icon">🗂️</div>
+          <div style="flex:1">
+            <div class="panel-title">Image Queue</div>
+            <div class="panel-sub" id="imgQueueSub">Loading...</div>
+          </div>
+        </div>
+        <div class="panel-body">
+          <!-- Stats -->
+          <div class="img-stats">
+            <div class="img-stat"><div class="img-stat-num" id="imgTotal">0</div><div class="img-stat-label">Total</div></div>
+            <div class="img-stat pend"><div class="img-stat-num" id="imgPending">0</div><div class="img-stat-label">Pending</div></div>
+            <div class="img-stat done"><div class="img-stat-num" id="imgPosted">0</div><div class="img-stat-label">Posted</div></div>
+          </div>
+
+          <!-- Image grid -->
+          <div id="imgGrid"></div>
+
+          <!-- Start automation bar -->
+          <div class="create-bar" style="margin-top:4px;">
+            <label>Post to</label>
+            <select id="imgPageDrop" style="max-width:160px;">
+              <option value="">— select page —</option>
+            </select>
+            <label>post</label>
+            <select id="imgPerDay">
+              <option value="1">1 / day</option>
+              <option value="2" selected>2 / day</option>
+              <option value="3">3 / day</option>
+              <option value="4">4 / day</option>
+              <option value="6">6 / day</option>
+            </select>
+            <button class="btn btn-green" id="imgCreateBtn" onclick="createImgAutomation()">
+              <span class="spinner"></span>
+              <span class="btn-text">🚀 Start Automation</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end #tabImages -->
+
+  </main>
+</div>
+
+<!-- Add Page Modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="maybeClose(event)">
+  <div class="modal">
+    <div class="modal-title"><span style="font-size:20px;">📘</span> Add Facebook Page</div>
+    <div class="err-box" id="modalErr" style="margin-bottom:12px;"><span>⚠️</span><span id="modalErrText"></span></div>
+    <div class="field"><label>Page Name</label><input type="text" id="inputName" placeholder="e.g. My Business Page"/></div>
+    <div class="field"><label>Page ID</label><input type="text" id="inputPageId" placeholder="e.g. 123456789012345"/></div>
+    <div class="field"><label>Page Access Token</label><input type="text" id="inputToken" placeholder="EAAxxxxxxxxxxxxxxx..."/></div>
+    <div class="modal-actions">
+      <button class="btn btn-blue" onclick="savePage()">Save Page</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Refresh Token Modal -->
+<div class="modal-overlay" id="tokenModalOverlay" onclick="maybeCloseToken(event)">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-title"><span style="font-size:20px;">🔄</span> Refresh Page Tokens</div>
+
+    <!-- How-to steps -->
+    <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:12px;line-height:1.8;color:#5a4000;">
+      <strong>How to get your tokens (one-time setup):</strong><br>
+      1. Go to <strong>developers.facebook.com/tools/explorer</strong><br>
+      2. Select your <strong>App</strong> (top right dropdown)<br>
+      3. Add permissions: <code>pages_manage_posts</code>, <code>pages_read_engagement</code><br>
+      4. Click <strong>Generate Access Token</strong> → copy the <strong>User Token</strong><br>
+      5. Paste it below — the app will exchange it for a <strong>never-expiring</strong> page token
+    </div>
+
+    <div class="err-box" id="tokenErr" style="margin-bottom:12px;"><span>⚠️</span><span id="tokenErrText"></span></div>
+    <div id="tokenSuccess" style="display:none;background:#e6f4ea;border:1px solid #b7dfbf;border-radius:8px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:#1e7e34;"></div>
+
+    <div class="field">
+      <label>User Access Token (from Graph API Explorer)</label>
+      <input type="text" id="inputUserToken" placeholder="EAAxxxxxxxxxxxxxxx..." style="font-size:12px;"/>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <div class="field" style="flex:1;margin-bottom:0;">
+        <label>App ID <span style="color:#aaa;font-weight:400;">(optional if set in .env)</span></label>
+        <input type="text" id="inputAppId" placeholder="Leave blank if in .env"/>
+      </div>
+      <div class="field" style="flex:1;margin-bottom:0;">
+        <label>App Secret <span style="color:#aaa;font-weight:400;">(optional if set in .env)</span></label>
+        <input type="password" id="inputAppSecret" placeholder="Leave blank if in .env"/>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-blue" id="exchangeBtn" onclick="exchangeToken()">
+        <span class="spinner"></span>
+        <span class="btn-text">🔄 Exchange & Refresh</span>
+      </button>
+      <button class="btn btn-ghost" onclick="closeTokenModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let fbPages     = [];
+  let selectedIds = new Set();
+  let currentRows = [];
+  let currentFile = '';
+
+  // ── Polling ────────────────────────────────────────────────────
+  let pollTimer   = null;
+  let cdTimers    = {};   // job_id → setInterval
+
+  function startPolling() {
+    if (pollTimer) return;
+    pollTimer = setInterval(pollJobs, 3000);
+    pollJobs();
+  }
+  function stopPolling() {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  }
+
+  // ── Pages ──────────────────────────────────────────────────────
+
+  async function loadPages() {
+    const res = await fetch('/pages');
+    fbPages   = await res.json();
+    renderSidebar();
+    renderPageDrop();
+  }
+
+  function renderSidebar() {
+    const list = document.getElementById('pagesList');
+    if (!fbPages.length) {
+      list.innerHTML = `<div class="empty-pages"><div class="empty-icon">📭</div>No pages yet.<br>Click <strong>+ Add New Page</strong>.</div>`;
+      return;
+    }
+    list.innerHTML = fbPages.map(p => `
+      <div class="page-card ${selectedIds.has(p.id)?'selected':''}" id="card-${p.id}" onclick="togglePage('${p.id}')">
+        <div class="page-card-inner">
+          <div class="page-avatar">${p.name[0].toUpperCase()}</div>
+          <div class="page-meta">
+            <div class="page-name">${esc(p.name)}</div>
+            <div class="page-pid">ID: ${esc(p.page_id)}</div>
+          </div>
+          <button class="page-del" onclick="delPage(event,'${p.id}')">✕</button>
+        </div>
+        <div class="sel-badge">✓ Selected</div>
+      </div>`).join('');
+  }
+
+  function renderPageDrop() {
+    const sel = document.getElementById('pageSelDrop');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— select page —</option>' +
+      fbPages.map(p => `<option value="${p.id}" ${cur===p.id?'selected':''}>${esc(p.name)}</option>`).join('');
+  }
+
+  function togglePage(id) {
+    selectedIds.has(id) ? selectedIds.delete(id) : selectedIds.add(id);
+    renderSidebar();
+  }
+
+  async function delPage(e, id) {
+    e.stopPropagation();
+    if (!confirm('Remove this page?')) return;
+    await fetch(`/pages/delete/${id}`, {method:'DELETE'});
+    selectedIds.delete(id);
+    await loadPages();
+  }
+
+  // ── Modal ──────────────────────────────────────────────────────
+
+  function openModal()  { document.getElementById('modalOverlay').classList.add('open'); document.getElementById('inputName').focus(); clearMErr(); }
+  function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); ['inputName','inputPageId','inputToken'].forEach(i=>document.getElementById(i).value=''); clearMErr(); }
+  function maybeClose(e){ if(e.target===document.getElementById('modalOverlay')) closeModal(); }
+  function clearMErr()  { document.getElementById('modalErr').classList.remove('show'); }
+  function showMErr(m)  { document.getElementById('modalErrText').textContent=m; document.getElementById('modalErr').classList.add('show'); }
+
+  async function savePage() {
+    clearMErr();
+    const name=document.getElementById('inputName').value.trim();
+    const pid=document.getElementById('inputPageId').value.trim();
+    const tok=document.getElementById('inputToken').value.trim();
+    const res=await fetch('/pages/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,page_id:pid,access_token:tok})});
+    const d=await res.json();
+    if(d.error){showMErr(d.error);return;}
+    closeModal(); await loadPages();
+  }
+
+  // ── Upload ─────────────────────────────────────────────────────
+
+  const fileInput  = document.getElementById('fileInput');
+  const uploadArea = document.getElementById('uploadArea');
+
+  fileInput.addEventListener('change', () => { if(fileInput.files[0]) handleFile(fileInput.files[0]); });
+  uploadArea.addEventListener('dragover',  e=>{e.preventDefault();uploadArea.classList.add('drag-over');});
+  uploadArea.addEventListener('dragleave', ()=>uploadArea.classList.remove('drag-over'));
+  uploadArea.addEventListener('drop', e=>{e.preventDefault();uploadArea.classList.remove('drag-over');if(e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0]);});
+
+  function showErr(m){document.getElementById('errText').textContent=m;document.getElementById('errBox').classList.add('show');}
+  function clearErr(){document.getElementById('errBox').classList.remove('show');}
+
+  async function handleFile(file) {
+    clearErr();
+    const fd = new FormData();
+    fd.append('file', file);
+    let data;
+    try {
+      const res = await fetch('/preview', {method:'POST', body:fd});
+      if (!res.ok) { showErr('Server error. Please try again.'); return; }
+      data = await res.json();
+    } catch { showErr('Could not read the file. Please try again.'); return; }
+    if (data.error) { showErr(data.error); return; }
+
+    currentRows = data.rows;
+    currentFile = data.filename;
+
+    // Pre-select the first page in the dropdown if sidebar has a selection
+    if (selectedIds.size > 0) {
+      const first = [...selectedIds][0];
+      document.getElementById('pageSelDrop').value = first;
+    }
+
+    renderPreview(data);
+    document.getElementById('uploadPanel').style.display   = 'none';
+    document.getElementById('previewPanel').style.display  = 'block';
+  }
+
+  function renderPreview(data) {
+    const pending = data.rows.filter(r=>!r.uploaded).length;
+    const done    = data.rows.filter(r=>r.uploaded).length;
+    document.getElementById('previewTitle').textContent = data.filename;
+    document.getElementById('previewSub').textContent   = `${pending} pending · ${done} already uploaded`;
+    document.getElementById('statTotal').textContent    = data.total;
+    document.getElementById('statPending').textContent  = pending;
+    document.getElementById('statDone').textContent     = done;
+    document.getElementById('createBtn').disabled       = pending === 0;
+    document.getElementById('textList').innerHTML = data.rows.map((r,i)=>`
+      <div class="text-row ${r.uploaded?'is-done':''}" id="row-${r.row_num}">
+        <span class="text-idx">${i+1}</span>
+        <span class="text-val">${esc(r.text)}</span>
+        <span class="pill ${r.uploaded?'uploaded':'pending'}">${r.uploaded?'✓ Uploaded':'⏳ Pending'}</span>
+      </div>`).join('');
+  }
+
+  function resetUpload() {
+    currentRows=[]; currentFile='';
+    fileInput.value='';
+    clearErr();
+    document.getElementById('previewPanel').style.display = 'none';
+    document.getElementById('uploadPanel').style.display  = 'block';
+  }
+
+  // ── Create automation ──────────────────────────────────────────
+
+  async function createAutomation() {
+    const pageId      = document.getElementById('pageSelDrop').value;
+    const intervalMin = parseInt(document.getElementById('intervalSel').value);
+
+    if (!pageId)      { showErr('Select a Facebook page from the dropdown.'); return; }
+    if (!currentFile) { showErr('Upload a file first.'); return; }
+
+    const btn = document.getElementById('createBtn');
+    btn.classList.add('loading'); btn.disabled = true;
+
+    const res  = await fetch('/scheduler/start', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({filename: currentFile, page_ids:[pageId], interval_min: intervalMin})
+    });
+    const data = await res.json();
+    btn.classList.remove('loading'); btn.disabled = false;
+
+    if (data.error) { showErr(data.error); return; }
+
+    // Reset upload area so user can add another file
+    resetUpload();
+    startPolling();
+  }
+
+  // ── Jobs UI ────────────────────────────────────────────────────
+
+  async function pollJobs() {
+    try {
+      const res  = await fetch('/scheduler/status');
+      const jobs = await res.json();
+      renderJobs(jobs);
+      // renderJobs handles start/stop polling based on active jobs
+    } catch {}
+  }
+
+  function fmtSecs(s) {
+    s = Math.max(0, Math.round(s));
+    return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+  }
+
+  function renderJobs(jobs) {
+    const wrap = document.getElementById('jobsWrap');
+    const chip = document.getElementById('jobCountChip');
+
+    if (!jobs.length) {
+      chip.style.display = 'none';
+      // Clear all timers
+      Object.keys(cdTimers).forEach(id => { clearInterval(cdTimers[id]); delete cdTimers[id]; });
+      wrap.innerHTML = `<div class="empty-jobs"><div class="empty-jobs-icon">🤖</div>No automations running yet.<br>Upload a file below to create one.</div>`;
+      return;
+    }
+
+    chip.style.display  = '';
+    chip.textContent    = `${jobs.length} job${jobs.length>1?'s':''}`;
+
+    // Clear all existing timers before re-rendering — DOM will be replaced
+    Object.keys(cdTimers).forEach(id => { clearInterval(cdTimers[id]); delete cdTimers[id]; });
+
+    wrap.innerHTML = `<div class="jobs-grid">${jobs.map(j=>jobCard(j)).join('')}</div>`;
+
+    // Restart countdown timers only for running jobs
+    jobs.forEach(j=>{
+      if (j.status==='running' && j.next_at) {
+        cdTimers[j.id] = setInterval(()=>tickCd(j.id), 1000);
+      }
+    });
+
+    // Keep polling alive if any job is running or queued
+    const anyActive = jobs.some(j=>j.status==='running'||j.status==='queued');
+    if (anyActive) startPolling(); else stopPolling();
+  }
+
+  function jobCard(j) {
+    const pct        = j.total > 0 ? Math.round((j.posts_sent/j.total)*100) : 0;
+    const statusText = j.status==='running' ? 'Running'
+                     : j.status==='done'    ? 'Done'
+                     : j.status==='queued'  ? 'Queued'
+                     : 'Stopped';
+    const pages      = (j.page_names||[]).join(', ') || 'Unknown page';
+
+    const actionBtns = j.status==='running'
+      ? `<button class="job-btn job-btn-stop" onclick="stopJob('${j.id}')">⏹ Stop</button>`
+      : j.status==='queued'
+        ? `<button class="job-btn job-btn-remove" onclick="removeJob('${j.id}')">✕ Cancel</button>`
+        : j.status==='done'
+          ? `<a class="job-btn job-btn-dl" href="/download/${encodeURIComponent(j.filename)}" download>⬇️ Download</a>
+             <button class="job-btn job-btn-remove" onclick="removeJob('${j.id}')">✕ Remove</button>`
+          : `<button class="job-btn job-btn-remove" onclick="removeJob('${j.id}')">✕ Remove</button>`;
+
+    let initCd = '00:00';
+    if (j.next_at) {
+      const secsLeft = (new Date(j.next_at) - Date.now()) / 1000;
+      initCd = fmtSecs(secsLeft);
+    }
+
+    const cdHtml = j.status==='running' && j.next_at
+      ? `<div class="job-countdown">
+           <span>⏱ Next post in</span>
+           <span class="cd-num" id="cd-${j.id}" data-next="${j.next_at}">${initCd}</span>
+         </div>`
+      : j.status==='done'
+        ? `<div style="font-size:12px;font-weight:700;color:#1e7e34;">🎉 All posts published!</div>`
+        : j.status==='queued'
+          ? `<div style="font-size:12px;color:#7c3aed;display:flex;align-items:center;gap:7px;">
+               <span style="font-size:16px;">⏳</span>
+               <span>Waiting for the current job on <strong>${esc(pages)}</strong> to finish, then will start automatically.</span>
+             </div>`
+          : '';
+
+    const lastHtml = j.last_post ? (() => {
+      const lp = j.last_post;
+      const ok = lp.status==='success';
+      return `<div class="job-last ${ok?'ok':'err'}">
+        <span class="job-last-icon">${ok?'✅':'❌'}</span>
+        <div class="job-last-info">
+          <strong>${esc(lp.text||'')}${(lp.text||'').length>=80?'...':''}</strong>
+          <small>${ok?'Posted to '+esc(lp.page)+' · Post ID: '+lp.post_id:'Failed: '+esc(lp.error||'')} · ${lp.time}</small>
+        </div>
+      </div>`;
+    })() : '';
+
+    return `
+      <div class="job-card ${j.status}" id="job-${j.id}">
+        <div class="job-head">
+          <div class="job-dot"></div>
+          <div class="job-info">
+            <div class="job-title">📄 ${esc(j.filename)}</div>
+            <div class="job-meta">📌 ${esc(pages)} · every ${j.interval_min} min · ${j.posts_sent}/${j.total} sent · created ${j.created_at}</div>
+          </div>
+          <span class="job-status-chip">${statusText}</span>
+          <div class="job-actions">${actionBtns}</div>
+        </div>
+        <div class="job-body">
+          <div>
+            <div class="prog-label"><span>${j.posts_sent} of ${j.total} posts sent</span><span>${pct}%</span></div>
+            <div class="prog-wrap"><div class="prog-fill" style="width:${pct}%"></div></div>
+          </div>
+          ${cdHtml}
+          ${lastHtml}
+        </div>
+      </div>`;
+  }
+
+  function tickCd(jobId) {
+    const el = document.getElementById(`cd-${jobId}`);
+    if (!el) return;
+    const nextAt = el.dataset.next;
+    if (!nextAt) return;
+    const secsLeft = (new Date(nextAt) - Date.now()) / 1000;
+    el.textContent = fmtSecs(secsLeft);
+  }
+
+  async function stopJob(id) {
+    await fetch(`/scheduler/stop/${id}`, {method:'POST'});
+    pollJobs();
+  }
+
+  async function removeJob(id) {
+    if (cdTimers[id]) { clearInterval(cdTimers[id]); delete cdTimers[id]; }
+    await fetch(`/scheduler/remove/${id}`, {method:'DELETE'});
+    pollJobs();
+  }
+
+  // ── Boot ───────────────────────────────────────────────────────
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Token refresh modal ────────────────────────────────────────
+
+  function openTokenModal() {
+    document.getElementById('tokenModalOverlay').classList.add('open');
+    document.getElementById('tokenSuccess').style.display = 'none';
+    document.getElementById('tokenErr').classList.remove('show');
+    document.getElementById('inputUserToken').focus();
+  }
+  function closeTokenModal() {
+    document.getElementById('tokenModalOverlay').classList.remove('open');
+    document.getElementById('inputUserToken').value = '';
+    document.getElementById('inputAppId').value     = '';
+    document.getElementById('inputAppSecret').value = '';
+  }
+  function maybeCloseToken(e) { if (e.target === document.getElementById('tokenModalOverlay')) closeTokenModal(); }
+
+  async function exchangeToken() {
+    const userToken = document.getElementById('inputUserToken').value.trim();
+    const appId     = document.getElementById('inputAppId').value.trim();
+    const appSecret = document.getElementById('inputAppSecret').value.trim();
+
+    document.getElementById('tokenErr').classList.remove('show');
+    document.getElementById('tokenSuccess').style.display = 'none';
+
+    if (!userToken) {
+      document.getElementById('tokenErrText').textContent = 'Paste your User Access Token first.';
+      document.getElementById('tokenErr').classList.add('show');
+      return;
+    }
+
+    const btn = document.getElementById('exchangeBtn');
+    btn.classList.add('loading'); btn.disabled = true;
+
+    const res  = await fetch('/token/exchange', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ user_token: userToken, app_id: appId, app_secret: appSecret })
+    });
+    const data = await res.json();
+    btn.classList.remove('loading'); btn.disabled = false;
+
+    if (data.error) {
+      document.getElementById('tokenErrText').textContent = data.error;
+      document.getElementById('tokenErr').classList.add('show');
+      return;
+    }
+
+    const pagesFound   = data.pages_found.map(p => p.name).join(', ');
+    const pagesUpdated = data.pages_updated;
+    const msg = pagesUpdated > 0
+      ? `✅ ${pagesUpdated} page token${pagesUpdated>1?'s':''} refreshed (${pagesFound}). These tokens never expire!`
+      : `⚠️ Found pages (${pagesFound}) but none matched your saved pages. Make sure your Page IDs match.`;
+
+    document.getElementById('tokenSuccess').textContent  = msg;
+    document.getElementById('tokenSuccess').style.display = 'block';
+    document.getElementById('inputUserToken').value = '';
+    await loadPages();
+  }
+
+  // ── Tab switcher ───────────────────────────────────────────────
+
+  function switchTab(tab) {
+    const textEl = document.getElementById('tabText');
+    const imgEl  = document.getElementById('tabImages');
+    textEl.style.display = tab==='text'   ? 'flex' : 'none';
+    imgEl.style.display  = tab==='images' ? 'flex' : 'none';
+    textEl.style.flexDirection = 'column'; textEl.style.gap = '20px';
+    imgEl.style.flexDirection  = 'column'; imgEl.style.gap  = '20px';
+    document.getElementById('tabTextBtn').classList.toggle('active', tab==='text');
+    document.getElementById('tabImgBtn').classList.toggle('active',  tab==='images');
+    if (tab==='images') loadImageQueue();
+  }
+
+  // ── Image file upload ───────────────────────────────────────────
+
+  let selectedFiles = [];
+
+  // Wire up file input + drag-drop
+  const imgFileInput = document.getElementById('imgFileInput');
+  const imgDropZone  = document.getElementById('imgDropZone');
+
+  imgFileInput.addEventListener('change', () => {
+    if (imgFileInput.files.length) addSelectedFiles(Array.from(imgFileInput.files));
+    imgFileInput.value = '';
+  });
+  imgDropZone.addEventListener('dragover',  e => { e.preventDefault(); imgDropZone.classList.add('drag-over'); });
+  imgDropZone.addEventListener('dragleave', () => imgDropZone.classList.remove('drag-over'));
+  imgDropZone.addEventListener('drop', e => {
+    e.preventDefault(); imgDropZone.classList.remove('drag-over');
+    addSelectedFiles(Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/')));
+  });
+
+  function addSelectedFiles(files) {
+    files.forEach(f => {
+      if (!selectedFiles.find(s => s.file.name === f.name && s.file.size === f.size)) {
+        selectedFiles.push({ file: f, status: 'pending', preview: URL.createObjectURL(f) });
+      }
+    });
+    renderSelectedFiles();
+  }
+
+  function renderSelectedFiles() {
+    const wrap = document.getElementById('selectedFilesWrap');
+    const grid = document.getElementById('selectedFilesGrid');
+    const count = document.getElementById('selFileCount');
+    if (!selectedFiles.length) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'block';
+    count.textContent  = `${selectedFiles.length} image${selectedFiles.length>1?'s':''} selected`;
+    grid.innerHTML = selectedFiles.map((s, i) => `
+      <div class="img-card img-file-card" id="selfile-${i}">
+        <div class="img-thumb-wrap">
+          <img class="img-thumb" src="${s.preview}" alt="${esc(s.file.name)}">
+          ${s.status==='uploading' ? '<div class="img-file-status uploading">⏳ Uploading...</div>' : ''}
+          ${s.status==='done'      ? '<div class="img-file-status done">✓ Uploaded</div>'            : ''}
+          ${s.status==='error'     ? `<div class="img-file-status error">❌ ${esc(s.error||'Failed')}</div>` : ''}
+        </div>
+        <div class="img-info" style="padding:6px 8px;">
+          <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(s.file.name)}</div>
+          <div style="font-size:10px;color:var(--muted);">${(s.file.size/1024).toFixed(0)} KB</div>
+        </div>
+      </div>`).join('');
+  }
+
+  function clearSelectedFiles() {
+    selectedFiles = [];
+    renderSelectedFiles();
+  }
+
+  async function uploadAllImages() {
+    if (!selectedFiles.length) return;
+    clearImgErr();
+    const btn = document.getElementById('uploadAllBtn');
+    btn.classList.add('loading'); btn.disabled = true;
+
+    let anyError = false;
+    for (let i = 0; i < selectedFiles.length; i++) {
+      if (selectedFiles[i].status === 'done') continue;
+      selectedFiles[i].status = 'uploading';
+      renderSelectedFiles();
+
+      const fd = new FormData();
+      fd.append('file', selectedFiles[i].file);
+      try {
+        const res  = await fetch('/images/upload', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (data.success) {
+          selectedFiles[i].status = 'done';
+        } else {
+          selectedFiles[i].status = 'error';
+          selectedFiles[i].error  = data.error || 'Upload failed';
+          anyError = true;
+        }
+      } catch {
+        selectedFiles[i].status = 'error';
+        selectedFiles[i].error  = 'Network error';
+        anyError = true;
+      }
+      renderSelectedFiles();
+      await loadImageQueue();
+    }
+
+    btn.classList.remove('loading'); btn.disabled = false;
+    if (!anyError) {
+      // All done — clear after a short delay so user sees the green ticks
+      setTimeout(() => { selectedFiles = []; renderSelectedFiles(); }, 1500);
+    }
+  }
+
+  async function loadImageQueue() {
+    const res   = await fetch('/images');
+    const queue = await res.json();
+    renderImageQueue(queue);
+    renderImgPageDrop();
+  }
+
+  function renderImageQueue(queue) {
+    const total   = queue.length;
+    const pending = queue.filter(i=>i.status==='pending').length;
+    const posted  = queue.filter(i=>i.status==='posted').length;
+
+    document.getElementById('imgTotal').textContent   = total;
+    document.getElementById('imgPending').textContent = pending;
+    document.getElementById('imgPosted').textContent  = posted;
+    document.getElementById('imgQueueSub').textContent = `${pending} pending · ${posted} posted`;
+    document.getElementById('imgCreateBtn').disabled  = pending === 0;
+
+    const grid = document.getElementById('imgGrid');
+    if (!queue.length) {
+      grid.innerHTML = '<div class="empty-img-queue">📭 No images yet. Add URLs above.</div>';
+      return;
+    }
+    grid.innerHTML = `<div class="img-grid">${queue.map(imgCard).join('')}</div>`;
+  }
+
+  function imgCard(img) {
+    return `
+      <div class="img-card ${img.status==='posted'?'is-posted':''}" id="imgcard-${img.id}">
+        <div class="img-thumb-wrap">
+          <img class="img-thumb" src="${esc(img.url)}" alt="" onerror="this.style.display='none';this.nextSibling.style.display='flex'">
+          <div class="img-thumb-err" style="display:none">🖼️</div>
+          ${img.status==='posted'?'<div class="img-posted-badge">✓ Posted</div>':''}
+        </div>
+        <div class="img-info">
+          <input class="img-caption-input" value="${esc(img.caption)}" placeholder="Caption..."
+            onblur="saveCaption('${img.id}',this.value)" onkeydown="if(event.key==='Enter'){this.blur();}">
+          ${img.posted_at?`<div class="img-posted-date">Posted ${esc(img.posted_at)}</div>`:''}
+          <button class="img-del" onclick="deleteImage('${img.id}')">🗑 Remove</button>
+        </div>
+      </div>`;
+  }
+
+  async function saveCaption(id, caption) {
+    await fetch(`/images/${id}/caption`, {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({caption})});
+  }
+
+  async function deleteImage(id) {
+    await fetch(`/images/${id}/delete`, {method:'DELETE'});
+    loadImageQueue();
+  }
+
+  function renderImgPageDrop() {
+    const sel = document.getElementById('imgPageDrop');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— select page —</option>' +
+      fbPages.map(p=>`<option value="${p.id}" ${cur===p.id?'selected':''}>${esc(p.name)}</option>`).join('');
+  }
+
+  function showImgErr(m) { document.getElementById('imgErrText').textContent=m; document.getElementById('imgErrBox').classList.add('show'); }
+  function clearImgErr() { document.getElementById('imgErrBox').classList.remove('show'); }
+
+  // ── Image automations ───────────────────────────────────────────
+
+  let imgPollTimer = null;
+  let imgCdTimers  = {};
+
+  function startImgPolling() { if (imgPollTimer) return; imgPollTimer = setInterval(pollImgJobs, 3000); pollImgJobs(); }
+  function stopImgPolling()  { if (imgPollTimer) { clearInterval(imgPollTimer); imgPollTimer = null; } }
+
+  async function createImgAutomation() {
+    const pageId       = document.getElementById('imgPageDrop').value;
+    const imagesPerDay = parseInt(document.getElementById('imgPerDay').value);
+    if (!pageId) { showImgErr('Select a Facebook page.'); return; }
+
+    const btn = document.getElementById('imgCreateBtn');
+    btn.classList.add('loading'); btn.disabled = true;
+    const res  = await fetch('/images/scheduler/start', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({page_ids:[pageId], images_per_day: imagesPerDay})
+    });
+    const data = await res.json();
+    btn.classList.remove('loading'); btn.disabled = false;
+    if (data.error) { showImgErr(data.error); return; }
+    clearImgErr();
+    startImgPolling();
+  }
+
+  async function pollImgJobs() {
+    try {
+      const res  = await fetch('/images/scheduler/status');
+      const jobs = await res.json();
+      renderImgJobs(jobs);
+      loadImageQueue();
+    } catch {}
+  }
+
+  function renderImgJobs(jobs) {
+    const wrap = document.getElementById('imgJobsWrap');
+    const chip = document.getElementById('imgJobCountChip');
+
+    Object.keys(imgCdTimers).forEach(id=>{ clearInterval(imgCdTimers[id]); delete imgCdTimers[id]; });
+
+    if (!jobs.length) {
+      chip.style.display = 'none';
+      wrap.innerHTML = '<div class="empty-jobs"><div class="empty-jobs-icon">🖼️</div>No image automations yet.<br>Add images below and create one.</div>';
+      stopImgPolling(); return;
+    }
+
+    chip.style.display = ''; chip.textContent = `${jobs.length} job${jobs.length>1?'s':''}`;
+    wrap.innerHTML = `<div class="jobs-grid">${jobs.map(imgJobCard).join('')}</div>`;
+
+    jobs.forEach(j=>{ if (j.status==='running' && j.next_at) imgCdTimers[j.id]=setInterval(()=>tickImgCd(j.id),1000); });
+    const anyActive = jobs.some(j=>j.status==='running'||j.status==='queued');
+    if (anyActive) startImgPolling(); else stopImgPolling();
+  }
+
+  function imgJobCard(j) {
+    const statusText = j.status==='running'?'Running':j.status==='done'?'Done':j.status==='queued'?'Queued':'Stopped';
+    const pages      = (j.page_names||[]).join(', ') || 'Unknown page';
+    let initCd = '00:00';
+    if (j.next_at) { const s=(new Date(j.next_at)-Date.now())/1000; initCd=fmtSecs(s); }
+
+    const actionBtns = j.status==='running'
+      ? `<button class="job-btn job-btn-stop" onclick="stopImgJob('${j.id}')">⏹ Stop</button>`
+      : j.status==='queued'
+        ? `<button class="job-btn job-btn-remove" onclick="removeImgJob('${j.id}')">✕ Cancel</button>`
+        : `<button class="job-btn job-btn-remove" onclick="removeImgJob('${j.id}')">✕ Remove</button>`;
+
+    const cdHtml = j.status==='running' && j.next_at
+      ? `<div class="job-countdown"><span>⏱ Next image in</span><span class="cd-num" id="icd-${j.id}" data-next="${j.next_at}">${initCd}</span></div>`
+      : j.status==='done' ? `<div style="font-size:12px;font-weight:700;color:#1e7e34;">🎉 All images posted!</div>`
+      : j.status==='queued' ? `<div style="font-size:12px;color:#7c3aed;display:flex;align-items:center;gap:7px;"><span>⏳</span><span>Waiting for current job on <strong>${esc(pages)}</strong> to finish.</span></div>`
+      : '';
+
+    const lastHtml = j.last_post ? (()=>{
+      const lp=j.last_post; const ok=lp.status==='success';
+      return `<div class="job-last ${ok?'ok':'err'}">
+        <span class="job-last-icon">${ok?'✅':'❌'}</span>
+        <div class="job-last-info">
+          ${ok?`<img src="${esc(lp.url)}" style="width:40px;height:30px;object-fit:cover;border-radius:4px;float:left;margin-right:7px;margin-bottom:2px;" onerror="this.style.display='none'">`:''}
+          <strong>${esc(lp.caption||'')}</strong>
+          <small>${ok?'Posted to '+esc(lp.page)+' · '+lp.time:'Failed: '+esc(lp.error||'')+' · '+lp.time}</small>
+        </div>
+      </div>`;
+    })() : '';
+
+    return `
+      <div class="job-card ${j.status}" id="imgjob-${j.id}">
+        <div class="job-head">
+          <div class="job-dot"></div>
+          <div class="job-info">
+            <div class="job-title">🖼️ Image Automation</div>
+            <div class="job-meta">📌 ${esc(pages)} · ${j.images_per_day}/day (every ${j.interval_min} min) · ${j.posts_sent} posted · created ${j.created_at}</div>
+          </div>
+          <span class="job-status-chip">${statusText}</span>
+          <div class="job-actions">${actionBtns}</div>
+        </div>
+        <div class="job-body">
+          ${cdHtml}
+          ${lastHtml}
+        </div>
+      </div>`;
+  }
+
+  function tickImgCd(jobId) {
+    const el = document.getElementById(`icd-${jobId}`);
+    if (!el) return;
+    const nextAt = el.dataset.next;
+    if (!nextAt) return;
+    el.textContent = fmtSecs((new Date(nextAt)-Date.now())/1000);
+  }
+
+  async function stopImgJob(id) { await fetch(`/images/scheduler/stop/${id}`,{method:'POST'}); pollImgJobs(); }
+  async function removeImgJob(id) {
+    if (imgCdTimers[id]) { clearInterval(imgCdTimers[id]); delete imgCdTimers[id]; }
+    await fetch(`/images/scheduler/remove/${id}`,{method:'DELETE'}); pollImgJobs();
+  }
+
+  // ── Boot ───────────────────────────────────────────────────────
+
+  async function boot() {
+    await loadPages();
+    const res  = await fetch('/scheduler/status');
+    const jobs = await res.json();
+    renderJobs(jobs);
+    if (jobs.some(j=>j.status==='running'||j.status==='queued')) startPolling();
+
+    // Also boot image automations
+    const res2  = await fetch('/images/scheduler/status');
+    const jobs2 = await res2.json();
+    renderImgJobs(jobs2);
+  }
+
+  boot();
+</script>
+</body>
+</html>

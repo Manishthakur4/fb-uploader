@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login — Facebook Post Uploader</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #e9ebee;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .logo-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    .logo-circle {
+      width: 64px; height: 64px;
+      background: #1877f2;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 38px; font-weight: 900; color: white;
+      line-height: 1;
+      margin-bottom: 12px;
+    }
+    .logo-title {
+      font-size: 28px; font-weight: 700; color: #1877f2; letter-spacing: -0.5px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      padding: 28px 24px 24px;
+      width: 100%;
+      max-width: 396px;
+    }
+
+    .form-group { margin-bottom: 14px; }
+
+    input[type="email"],
+    input[type="password"] {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1px solid #dddfe2;
+      border-radius: 6px;
+      font-size: 17px;
+      color: #1c1e21;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    input[type="email"]:focus,
+    input[type="password"]:focus {
+      border-color: #1877f2;
+      box-shadow: 0 0 0 2px rgba(24,119,242,0.2);
+    }
+
+    .error-box {
+      background: #fff0f0;
+      color: #c0392b;
+      border: 1px solid #f5c6c6;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 13px;
+      margin-bottom: 14px;
+    }
+
+    .btn-login {
+      width: 100%;
+      padding: 14px;
+      background: #1877f2;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 17px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-bottom: 16px;
+    }
+    .btn-login:hover { background: #1464d8; }
+    .btn-login:active { background: #1158c7; }
+
+    .divider {
+      border: none;
+      border-top: 1px solid #e4e6eb;
+      margin: 16px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="logo-wrap">
+    <div class="logo-circle">f</div>
+    <div class="logo-title">Post Uploader</div>
+  </div>
+
+  <div class="card">
+    {% if error %}
+    <div class="error-box">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="/login">
+      <div class="form-group">
+        <input type="email" name="email" placeholder="Email address" required autofocus />
+      </div>
+      <div class="form-group">
+        <input type="password" name="password" placeholder="Password" required />
+      </div>
+      <button type="submit" class="btn-login">Log In</button>
+    </form>
+  </div>
+
+</body>
+</html>

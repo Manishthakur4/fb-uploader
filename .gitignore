@@ -1,0 +1,10 @@
+.env
+pages.json
+image_queue.json
+uploads/
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+*.xlsx
+*.numbers
