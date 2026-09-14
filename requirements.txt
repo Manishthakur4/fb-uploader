@@ -3,3 +3,4 @@ openpyxl==3.1.5
 requests==2.32.3
 python-dotenv==1.0.1
 numbers-parser
+gunicorn==22.0.0
