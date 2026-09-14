@@ -436,22 +436,36 @@ def token_exchange():
     if not fb_pages:
         return jsonify({"error": "No pages found for this account. Make sure you manage at least one Facebook Page."}), 400
 
-    # Step 3: update matching pages in pages.json with fresh never-expiring tokens
+    # Step 3: update existing pages and add new ones with never-expiring tokens
     saved   = load_pages()
     updated = 0
+    added   = []
     for fb_p in fb_pages:
+        matched = False
         for sp in saved:
             if sp["page_id"] == fb_p["id"]:
                 sp["access_token"] = fb_p["access_token"]
+                sp["name"]         = fb_p["name"]
+                matched = True
                 updated += 1
+                break
+        if not matched:
+            saved.append({
+                "id":           str(uuid.uuid4()),
+                "name":         fb_p["name"],
+                "page_id":      fb_p["id"],
+                "access_token": fb_p["access_token"],
+            })
+            added.append(fb_p["name"])
 
     save_pages(saved)
 
     return jsonify({
-        "success":      True,
-        "long_token":   long_token,
-        "pages_found":  [{"name": p["name"], "id": p["id"]} for p in fb_pages],
+        "success":       True,
+        "pages_found":   [{"name": p["name"], "id": p["id"]} for p in fb_pages],
         "pages_updated": updated,
+        "pages_added":   len(added),
+        "added_names":   added,
     })
 
 

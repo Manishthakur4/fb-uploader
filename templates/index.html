@@ -255,8 +255,7 @@
   <aside class="sidebar">
     <div class="sidebar-header">
       <h2>Facebook Pages</h2>
-      <button class="btn-add-page" onclick="openModal()">+ Add New Page</button>
-      <button class="btn-add-page" style="margin-top:7px;background:#fff8e1;color:#856404;border-color:#f0a500;" onclick="openTokenModal()">🔄 Refresh Tokens</button>
+      <button class="btn-add-page" onclick="openTokenModal()">+ Add Page</button>
     </div>
     <div class="pages-list" id="pagesList"></div>
   </aside>
@@ -483,38 +482,22 @@
   </main>
 </div>
 
-<!-- Add Page Modal -->
-<div class="modal-overlay" id="modalOverlay" onclick="maybeClose(event)">
-  <div class="modal">
-    <div class="modal-title"><span style="font-size:20px;">📘</span> Add Facebook Page</div>
-    <div class="err-box" id="modalErr" style="margin-bottom:12px;"><span>⚠️</span><span id="modalErrText"></span></div>
-    <div class="field"><label>Page Name</label><input type="text" id="inputName" placeholder="e.g. My Business Page"/></div>
-    <div class="field"><label>Page ID</label><input type="text" id="inputPageId" placeholder="e.g. 123456789012345"/></div>
-    <div class="field"><label>Page Access Token</label><input type="text" id="inputToken" placeholder="EAAxxxxxxxxxxxxxxx..."/></div>
-    <div class="modal-actions">
-      <button class="btn btn-blue" onclick="savePage()">Save Page</button>
-      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-    </div>
-  </div>
-</div>
-
-<!-- Refresh Token Modal -->
+<!-- Add Page Modal (unified: exchange token → auto-add/refresh all pages) -->
 <div class="modal-overlay" id="tokenModalOverlay" onclick="maybeCloseToken(event)">
   <div class="modal" style="max-width:500px;">
-    <div class="modal-title"><span style="font-size:20px;">🔄</span> Refresh Page Tokens</div>
+    <div class="modal-title"><span style="font-size:20px;">📘</span> Add / Refresh Pages</div>
 
-    <!-- How-to steps -->
-    <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:12px;line-height:1.8;color:#5a4000;">
-      <strong>How to get your tokens (one-time setup):</strong><br>
+    <div style="background:#e7f0fd;border:1px solid #b3cefc;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:12px;line-height:1.9;color:#1a3a6b;">
+      <strong>How to get a never-expiring token:</strong><br>
       1. Go to <strong>developers.facebook.com/tools/explorer</strong><br>
-      2. Select your <strong>App</strong> (top right dropdown)<br>
+      2. Select your <strong>App</strong> from the top-right dropdown<br>
       3. Add permissions: <code>pages_manage_posts</code>, <code>pages_read_engagement</code><br>
       4. Click <strong>Generate Access Token</strong> → copy the <strong>User Token</strong><br>
-      5. Paste it below — the app will exchange it for a <strong>never-expiring</strong> page token
+      5. Paste it below — all your pages are added automatically with tokens that <strong>never expire</strong>
     </div>
 
     <div class="err-box" id="tokenErr" style="margin-bottom:12px;"><span>⚠️</span><span id="tokenErrText"></span></div>
-    <div id="tokenSuccess" style="display:none;background:#e6f4ea;border:1px solid #b7dfbf;border-radius:8px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:#1e7e34;"></div>
+    <div id="tokenSuccess" style="display:none;background:#e6f4ea;border:1px solid #b7dfbf;border-radius:8px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:#1e7e34;line-height:1.7;"></div>
 
     <div class="field">
       <label>User Access Token (from Graph API Explorer)</label>
@@ -533,9 +516,9 @@
     <div class="modal-actions">
       <button class="btn btn-blue" id="exchangeBtn" onclick="exchangeToken()">
         <span class="spinner"></span>
-        <span class="btn-text">🔄 Exchange & Refresh</span>
+        <span class="btn-text">🔗 Connect & Add Pages</span>
       </button>
-      <button class="btn btn-ghost" onclick="closeTokenModal()">Close</button>
+      <button class="btn btn-ghost" onclick="closeTokenModal()">Cancel</button>
     </div>
   </div>
 </div>
@@ -606,25 +589,6 @@
     await fetch(`/pages/delete/${id}`, {method:'DELETE'});
     selectedIds.delete(id);
     await loadPages();
-  }
-
-  // ── Modal ──────────────────────────────────────────────────────
-
-  function openModal()  { document.getElementById('modalOverlay').classList.add('open'); document.getElementById('inputName').focus(); clearMErr(); }
-  function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); ['inputName','inputPageId','inputToken'].forEach(i=>document.getElementById(i).value=''); clearMErr(); }
-  function maybeClose(e){ if(e.target===document.getElementById('modalOverlay')) closeModal(); }
-  function clearMErr()  { document.getElementById('modalErr').classList.remove('show'); }
-  function showMErr(m)  { document.getElementById('modalErrText').textContent=m; document.getElementById('modalErr').classList.add('show'); }
-
-  async function savePage() {
-    clearMErr();
-    const name=document.getElementById('inputName').value.trim();
-    const pid=document.getElementById('inputPageId').value.trim();
-    const tok=document.getElementById('inputToken').value.trim();
-    const res=await fetch('/pages/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,page_id:pid,access_token:tok})});
-    const d=await res.json();
-    if(d.error){showMErr(d.error);return;}
-    closeModal(); await loadPages();
   }
 
   // ── Upload ─────────────────────────────────────────────────────
@@ -908,13 +872,14 @@
       return;
     }
 
-    const pagesFound   = data.pages_found.map(p => p.name).join(', ');
-    const pagesUpdated = data.pages_updated;
-    const msg = pagesUpdated > 0
-      ? `✅ ${pagesUpdated} page token${pagesUpdated>1?'s':''} refreshed (${pagesFound}). These tokens never expire!`
-      : `⚠️ Found pages (${pagesFound}) but none matched your saved pages. Make sure your Page IDs match.`;
+    const lines = [];
+    if (data.pages_added > 0)
+      lines.push(`➕ ${data.pages_added} new page${data.pages_added>1?'s':''} added: ${data.added_names.join(', ')}`);
+    if (data.pages_updated > 0)
+      lines.push(`🔄 ${data.pages_updated} page token${data.pages_updated>1?'s':''} refreshed`);
+    lines.push('✅ All tokens never expire!');
 
-    document.getElementById('tokenSuccess').textContent  = msg;
+    document.getElementById('tokenSuccess').innerHTML = lines.join('<br>');
     document.getElementById('tokenSuccess').style.display = 'block';
     document.getElementById('inputUserToken').value = '';
     await loadPages();
